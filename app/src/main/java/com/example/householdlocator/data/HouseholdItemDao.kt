@@ -15,12 +15,12 @@ interface HouseholdItemDao {
     @Update
     suspend fun update(item: HouseholdItem)
 
-    @Query("SELECT * FROM household_items ORDER BY name ASC")
+    @Query("SELECT * FROM household_items ORDER BY name COLLATE NOCASE ASC")
     fun getAll(): Flow<List<HouseholdItem>>
 
-    @Query("SELECT * FROM household_items WHERE lower(name) = lower(:name) LIMIT 1")
+    @Query("SELECT * FROM household_items WHERE name = :name COLLATE NOCASE LIMIT 1")
     suspend fun getByName(name: String): HouseholdItem?
 
-    @Query("SELECT * FROM household_items WHERE lower(location) LIKE '%' || lower(:location) || '%' ORDER BY name ASC")
-    fun getByLocation(location: String): Flow<List<HouseholdItem>>
+    @Query("SELECT * FROM household_items WHERE location LIKE '%' || :location || '%' COLLATE NOCASE ORDER BY name COLLATE NOCASE ASC")
+    suspend fun findByLocationOnce(location: String): List<HouseholdItem>
 }

@@ -1,33 +1,30 @@
 # Household Item Locator
 
-A small Android app for tracking household items and their locations.
+A Kotlin/Jetpack Compose Android app for tracking household items and their locations.
 
-Features:
-- Search for an item by name
-- Check whether the item already exists in the local record
-- Create a new household item
-- Update the location of an existing item
-- Search items by location
-- Store the information locally on device with Room
+## Open and run in Android Studio
 
-## Tech stack
-- Kotlin
-- Jetpack Compose
-- Material 3
-- Room database
+1. Clone or download this repository.
+2. Open the **repository root** (`household-item-locator`), not the `app` directory.
+3. Use Android Studio Ladybug (or newer) with JDK 17 selected under **Settings > Build Tools > Gradle**.
+4. Allow Gradle sync to download Gradle 8.7 and the Android/Kotlin dependencies.
+5. Select an Android emulator or physical device running API 26 or newer.
+6. Click **Run** for the `app` configuration.
 
-## Setup
-1. Open this project in Android Studio.
-2. Let Android Studio sync Gradle.
-3. Choose an emulator or device and run the app.
+The project uses:
 
-## Core flow
-- Enter item name and location.
-- Tap "Check Item" to see whether it exists.
-- Tap "Save / Update Item" to create or update the record.
-- Use the location search box to view all matching household items in a room, area, or zone.
+- Android Gradle Plugin 8.5.2
+- Gradle 8.7
+- Kotlin 1.9.24
+- Jetpack Compose with the Kotlin Compose compiler extension
+- Room 2.6.1 with KSP
 
-## Project structure
-- `app/src/main/java/.../data` - Room entities, DAO, database
-- `app/src/main/java/.../ui` - Compose UI and state
-- `app/src/main/res` - Android resources
+No `local.properties` file is committed; Android Studio creates it automatically for each machine.
+
+## Core behavior
+
+- Check whether an item exists by name.
+- Create a new item with a location.
+- Update the location when an item already exists.
+- Search for all items whose location contains a typed search term.
+- Persist data locally with Room.

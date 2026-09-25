@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
@@ -38,109 +39,60 @@ fun HouseholdApp(database: HouseholdItemDatabase) {
     var itemName by remember { mutableStateOf("") }
     var itemLocation by remember { mutableStateOf("") }
     var locationQuery by remember { mutableStateOf("") }
-    var statusMessage by remember { mutableStateOf("Search for a household item or create one.") }
+    var statusMessage by remember { mutableStateOf("Search for an item or create one.") }
     var matchedItem by remember { mutableStateOf<HouseholdItem?>(null) }
     var locationResults by remember { mutableStateOf<List<HouseholdItem>>(emptyList()) }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
+        modifier = Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text(
-            text = "Household Item Locator",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold
-        )
+        Text("Household Item Locator", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
 
         Card(
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
         ) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                OutlinedTextField(
-                    value = itemName,
-                    onValueChange = { itemName = it },
-                    label = { Text("Item name") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                OutlinedTextField(
-                    value = itemLocation,
-                    onValueChange = { itemLocation = it },
-                    label = { Text("Location") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
+                OutlinedTextField(itemName, { itemName = it }, label = { Text("Item name") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(itemLocation, { itemLocation = it }, label = { Text("Location") }, modifier = Modifier.fillMaxWidth())
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Button(onClick = {
                         scope.launch {
-                            val normalizedName = normalizeText(itemName)
-                            val item = if (normalizedName.isBlank()) null else dao.getByName(normalizedName)
+                            val name = normalize(itemName)
+                            val item = if (name.isEmpty()) null else dao.getByName(name)
                             matchedItem = item
-                            statusMessage = if (item == null) {
-                                "No item named '$itemName' was found in the record."
-                            } else {
-                                "Found '${item.name}' in '${item.location}'."
-                            }
+                            statusMessage = if (item == null) "No item named '$itemName' was found." else "Found '${item.name}' in '${item.location}'."
                         }
-                    }) {
-                        Text("Check Item")
-                    }
-
+                    }) { Text("Check Item") }
                     Button(onClick = {
                         scope.launch {
-                            val trimmedName = itemName.trim()
-                            val trimmedLocation = itemLocation.trim()
-
-                            if (trimmedName.isBlank() || trimmedLocation.isBlank()) {
-                                statusMessage = "Please enter both an item name and a location."
+                            val name = itemName.trim()
+                            val location = itemLocation.trim()
+                            if (name.isEmpty() || location.isEmpty()) {
+                                statusMessage = "Enter both an item name and a location."
                                 return@launch
                             }
-
-                            val normalizedName = normalizeText(trimmedName)
-                            val existing = dao.getByName(normalizedName)
-
-                            if (existing != null) {
-                                val updated = existing.copy(
-                                    location = formatTitle(trimmedLocation),
-                                    updatedAt = System.currentTimeMillis()
-                                )
+                            val existing = dao.getByName(normalize(name))
+                            if (existing == null) {
+                                val created = HouseholdItem(name = titleCase(name), location = titleCase(location))
+                                dao.insert(created)
+                                matchedItem = created
+                                statusMessage = "Created '${created.name}' in '${created.location}'."
+                            } else {
+                                val updated = existing.copy(location = titleCase(location), updatedAt = System.currentTimeMillis())
                                 dao.update(updated)
                                 matchedItem = updated
                                 statusMessage = "Updated '${updated.name}' to '${updated.location}'."
-                            } else {
-                                val created = HouseholdItem(
-                                    name = formatTitle(trimmedName),
-                                    location = formatTitle(trimmedLocation),
-                                    createdAt = System.currentTimeMillis(),
-                                    updatedAt = System.currentTimeMillis()
-                                )
-                                dao.insert(created)
-                                matchedItem = created
-                                statusMessage = "Created new item '${created.name}' in '${created.location}'."
                             }
                         }
-                    }) {
-                        Text("Save / Update")
-                    }
+                    }) { Text("Save / Update") }
                 }
-
-                if (matchedItem != null) {
-                    Text(
-                        text = "Current match: ${matchedItem!!.name} — ${matchedItem!!.location}",
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-
-                Text(text = statusMessage)
+                matchedItem?.let { Text("Current match: ${it.name} — ${it.location}", fontWeight = FontWeight.Medium) }
+                Text(statusMessage)
             }
         }
 
@@ -149,92 +101,54 @@ fun HouseholdApp(database: HouseholdItemDatabase) {
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
         ) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                OutlinedTextField(
-                    value = locationQuery,
-                    onValueChange = { locationQuery = it },
-                    label = { Text("Search by location") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
+                OutlinedTextField(locationQuery, { locationQuery = it }, label = { Text("Search by location") }, modifier = Modifier.fillMaxWidth())
                 Button(
+                    modifier = Modifier.fillMaxWidth(),
                     onClick = {
                         scope.launch {
-                            val query = normalizeText(locationQuery)
-                            if (query.isBlank()) {
+                            val query = normalize(locationQuery)
+                            if (query.isEmpty()) {
                                 locationResults = emptyList()
-                                statusMessage = "Enter a location to search for items."
-                                return@launch
-                            }
-
-                            dao.getByLocation(query).collect { items ->
-                                locationResults = items
-                            }
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Find Items in Location")
-                }
-
-                if (locationResults.isEmpty()) {
-                    Text("No items found for this location.")
-                } else {
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(locationResults) { item ->
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.background)
-                            ) {
-                                Column(modifier = Modifier.padding(12.dp)) {
-                                    Text(text = item.name, fontWeight = FontWeight.Bold)
-                                    Text(text = "Location: ${item.location}")
-                                }
+                                statusMessage = "Enter a location to search."
+                            } else {
+                                locationResults = dao.findByLocationOnce(query)
+                                statusMessage = "Found ${locationResults.size} item(s) in '$locationQuery'."
                             }
                         }
                     }
+                ) { Text("Find Items in Location") }
+                if (locationResults.isEmpty()) Text("No items found for this location.")
+                else LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    items(locationResults, key = { it.id }) { item -> ItemCard(item) }
                 }
             }
         }
 
-        Text(
-            text = "All tracked household items",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold
-        )
-
-        if (allItems.isEmpty()) {
-            Text("No household items recorded yet.")
-        } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(allItems) { item ->
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Text(text = item.name, fontWeight = FontWeight.Bold)
-                            Text(text = "Location: ${item.location}")
-                        }
-                    }
-                }
-            }
+        Text("All tracked household items", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        if (allItems.isEmpty()) Text("No household items recorded yet.")
+        else LazyColumn(
+            modifier = Modifier.fillMaxWidth().weight(1f),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(allItems, key = { it.id }) { item -> ItemCard(item) }
         }
     }
 }
 
-private fun normalizeText(value: String): String {
-    return value.trim().lowercase(Locale.getDefault())
+@Composable
+private fun ItemCard(item: HouseholdItem) {
+    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(item.name, fontWeight = FontWeight.Bold)
+            Text("Location: ${item.location}")
+        }
+    }
 }
 
-private fun formatTitle(value: String): String {
-    return value.trim()
-        .split(Regex("\\s+"))
-        .joinToString(" ") { word ->
-            word.lowercase(Locale.getDefault()).replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
-        }
-}
+private fun normalize(value: String): String = value.trim().lowercase(Locale.getDefault())
+
+private fun titleCase(value: String): String = value.trim().split(Regex("\\s+"))
+    .joinToString(" ") { word -> word.lowercase(Locale.getDefault()).replaceFirstChar { it.titlecase(Locale.getDefault()) } }
